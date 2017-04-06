@@ -107,6 +107,7 @@ namespace SimpleWeb {
             Content content;
 
             std::unordered_multimap<std::string, std::string, case_insensitive_hash, case_insensitive_equals> header;
+			std::unordered_multimap<std::string, std::string, case_insensitive_hash, case_insensitive_equals> query;
 
             REGEX_NS::smatch path_match;
             
@@ -121,6 +122,35 @@ namespace SimpleWeb {
                 }
                 catch(...) {}
             }
+
+			void parse_query() {
+				std::string::size_type pos = path.find_last_of('?');
+				if (pos != std::string::npos) {
+					std::string query_str = path.substr(pos + 1);
+					while (!query_str.empty()) {
+						std::string key = query_str;
+						pos = key.find('&');
+						if (pos != std::string::npos) {
+							query_str = key.substr(pos + 1);
+							key = key.substr(0, pos);
+						}
+						else {
+							query_str.clear();
+						}
+						if (key.empty()) {
+							continue;
+						}
+						std::string value;
+						pos = key.find('=');
+						if (pos != std::string::npos) {
+							value = key.substr(pos + 1);
+							key = key.substr(0, pos);
+						}
+						query.emplace(key, value);
+					}
+				}
+			}
+
             
             boost::asio::streambuf streambuf;
         };
@@ -319,6 +349,7 @@ namespace SimpleWeb {
                 if((path_end=line.find(' ', method_end+1))!=std::string::npos) {
                     request->method=line.substr(0, method_end);
                     request->path=line.substr(method_end+1, path_end-method_end-1);
+					request->parse_query();
 
                     size_t protocol_end;
                     if((protocol_end=line.find('/', path_end+1))!=std::string::npos) {
